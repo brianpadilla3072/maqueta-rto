@@ -114,6 +114,50 @@ export const vehiculos: Vehiculo[] = [
     vencimiento: '05/11/2026',
     condicional: false,
   },
+  // ── Vehículos de prueba ──────────────────────────────────────
+  {
+    // Carga peligrosa + antigüedad > 10 años → dispara aviso de vigencia reducida
+    patente: 'VEJ 001',
+    titular: 'Transportes Viejos SA',
+    cuit: '30-99991111-1',
+    condicionIva: 'Responsable inscripto',
+    tipo: 'Carga',
+    peligrosa: true,
+    anio: 2010,
+    jurisdiccion: 'La Pampa',
+    ultimaRevision: '—',
+    vencimiento: '—',
+    condicional: false,
+  },
+  {
+    // Particular sin condicional en provincia no restringida
+    patente: 'PAR 001',
+    titular: 'María Libre',
+    cuit: '27-88882222-8',
+    condicionIva: 'Consumidor final',
+    tipo: 'Particular',
+    peligrosa: false,
+    anio: 2020,
+    jurisdiccion: 'Neuquén',
+    ultimaRevision: '—',
+    vencimiento: '—',
+    condicional: false,
+  },
+  {
+    // Condicional reciente (≤ 30 días) → reverificación, no bloqueo
+    patente: 'CON 020',
+    titular: 'Pedro Condicional',
+    cuit: '20-77773333-7',
+    condicionIva: 'Consumidor final',
+    tipo: 'Carga',
+    peligrosa: false,
+    anio: 2018,
+    jurisdiccion: 'Córdoba',
+    ultimaRevision: '—',
+    vencimiento: '—',
+    condicional: true,
+    diasCondicional: 20,
+  },
 ]
 
 // ── Cola activa del día ──────────────────────────────────────────

@@ -1,90 +1,120 @@
 'use client'
 import { useState } from 'react'
 import {
-  Stack, Title, Tabs, Table, NumberInput, Button, Group, Text,
-  Checkbox, Switch, Modal, TextInput, Select, Card, SimpleGrid,
+  Stack, Title, Tabs, Table, Text, Alert, Badge, Group, SimpleGrid, ScrollArea, Card, Button, Modal, TextInput, NumberInput,
 } from '@mantine/core'
 import {
-  IconCurrencyDollar, IconClock, IconTruck, IconUsers, IconPlus,
+  IconCurrencyDollar, IconClock, IconTruck, IconUsers, IconInfoCircle, IconAlertTriangle, IconPlus, IconCalendar,
 } from '@tabler/icons-react'
-import { preciosIniciales, usuariosIniciales, type Usuario } from '@/lib/mock'
+import { preciosIniciales, usuariosIniciales } from '@/lib/mock'
 
-const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const diasHabiles = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
+const apertura = '08:00'
+const cierre = '17:00'
+const lineas = [
+  { id: 1, nombre: 'Línea 1', capacidad: 8, activa: true },
+  { id: 2, nombre: 'Línea 2', capacidad: 6, activa: true },
+]
+
+const formatPrecio = (n: number) =>
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
+
+const condicionalesIniciales = [
+  { id: 1, placa: 'GHI 789', propietario: 'Carlos Rodríguez', diasVencidos: 35 },
+  { id: 2, placa: 'HIJ 456', propietario: 'Miguel Ángel López', diasVencidos: 49 },
+]
 
 export default function ConfigPage() {
-  const [precios, setPrecios] = useState(preciosIniciales)
-  const [diasHabiles, setDiasHabiles] = useState(['Lunes','Martes','Miércoles','Jueves','Viernes'])
-  const [apertura, setApertura] = useState('08:00')
-  const [cierre, setCierre] = useState('17:00')
-  const [lineas, setLineas] = useState([
-    { id: 1, nombre: 'Línea 1', capacidad: 8, activa: true },
-    { id: 2, nombre: 'Línea 2', capacidad: 6, activa: true },
-  ])
-  const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciales)
-  const [modalUsuario, setModalUsuario] = useState(false)
-  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', rol: 'TECNICO' as Usuario['rol'] })
+  const [condicionales, setCondicionales] = useState(condicionalesIniciales)
 
-  const agregarUsuario = () => {
-    setUsuarios(prev => [...prev, {
-      id: String(Date.now()),
-      nombre: nuevoUsuario.nombre,
-      email: nuevoUsuario.email,
-      rol: nuevoUsuario.rol,
-      activo: true,
-    }])
-    setNuevoUsuario({ nombre: '', email: '', rol: 'TECNICO' })
-    setModalUsuario(false)
+  const handleEliminar = (id: number) => {
+    setCondicionales(condicionales.filter(c => c.id !== id))
   }
-
-  const toggleUsuario = (id: string) =>
-    setUsuarios(prev => prev.map(u => u.id === id ? { ...u, activo: !u.activo } : u))
 
   return (
     <Stack maw={860} mx="auto">
-      <Title order={2}>Configuración</Title>
+      <Title order={2}>Administración</Title>
+
 
       <Tabs defaultValue="precios">
         <Tabs.List>
-          <Tabs.Tab value="precios" leftSection={<IconCurrencyDollar size={16} />}>Precios</Tabs.Tab>
+          <Tabs.Tab value="observados" leftSection={<IconCalendar size={16} />}>Observados</Tabs.Tab>
+          <Tabs.Tab value="precios"  leftSection={<IconCurrencyDollar size={16} />}>Precios</Tabs.Tab>
           <Tabs.Tab value="horarios" leftSection={<IconClock size={16} />}>Horarios</Tabs.Tab>
-          <Tabs.Tab value="lineas" leftSection={<IconTruck size={16} />}>Líneas</Tabs.Tab>
+          <Tabs.Tab value="lineas"   leftSection={<IconTruck size={16} />}>Líneas</Tabs.Tab>
           <Tabs.Tab value="usuarios" leftSection={<IconUsers size={16} />}>Usuarios</Tabs.Tab>
         </Tabs.List>
 
+        {/* ── OBSERVADOS ── */}
+        <Tabs.Panel value="observados" pt="lg">
+          <Title order={4} mb="md">Vehículos observados</Title>
+          <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" mb="lg">
+            Los observados tienen 30 días para presentarse. Forzar turno renueva el plazo.
+          </Alert>
+
+          {condicionales.length > 0 && (
+            <Card withBorder p="lg" style={{ backgroundColor: '#fffaf0', borderColor: '#fed7aa' }}>
+              <Group mb="md" gap="sm" align="flex-start">
+                <IconAlertTriangle size={16} color="#ea580c" style={{ marginTop: 2, flexShrink: 0 }} />
+                <Text fw={600} size="sm" c="#ea580c">Condicionales vencidos — requieren atención</Text>
+              </Group>
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                {condicionales.map(c => (
+                  <div key={c.id} style={{ backgroundColor: '#fff', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 14px' }}>
+                    <Group justify="space-between" gap="md" mb="xs">
+                      <div>
+                        <Text fw={700} size="sm" style={{ fontFamily: 'monospace' }}>{c.placa}</Text>
+                        <Text size="xs" c="dimmed">{c.propietario}</Text>
+                      </div>
+                      <Badge size="sm" variant="light" color="orange">{c.diasVencidos} días</Badge>
+                    </Group>
+                    <Group gap="xs">
+                      <Button variant="light" color="blue" size="xs" style={{ flex: 1 }} onClick={() => {
+                        setCondicionales(prev => prev.map(x => x.id === c.id ? { ...x, diasVencidos: 0 } : x))
+                      }}>
+                        Forzar turno
+                      </Button>
+                      <Button variant="subtle" color="red" size="xs" onClick={() => handleEliminar(c.id)}>
+                        Remover
+                      </Button>
+                    </Group>
+                  </div>
+                ))}
+              </SimpleGrid>
+            </Card>
+          )}
+
+          {condicionales.length === 0 && (
+            <Alert icon={<IconInfoCircle size={16} />} color="teal" variant="light">
+              No hay vehículos observados en este momento.
+            </Alert>
+          )}
+        </Tabs.Panel>
+
         {/* ── PRECIOS ── */}
         <Tabs.Panel value="precios" pt="lg">
+          <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" mb="lg">
+            Esta pantalla es solo de consulta. Para modificar la configuración, accedé al sistema Marino.
+          </Alert>
           <Title order={4} mb="md">Precios por tipo de vehículo</Title>
-          <Table striped>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Tipo</Table.Th>
-                <Table.Th>Precio actual</Table.Th>
-                <Table.Th>Editar</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {Object.entries(precios).map(([tipo, valor]) => (
-                <Table.Tr key={tipo}>
-                  <Table.Td>{tipo}</Table.Td>
-                  <Table.Td>
-                    <Text fw={500}>{new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(valor)}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <NumberInput
-                      value={valor}
-                      onChange={(v) => setPrecios(p => ({ ...p, [tipo]: Number(v) }))}
-                      prefix="$ "
-                      thousandSeparator="."
-                      decimalSeparator=","
-                      size="xs"
-                      style={{ width: 150 }}
-                    />
-                  </Table.Td>
+          <ScrollArea>
+            <Table striped style={{ minWidth: 280 }}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Tipo</Table.Th>
+                  <Table.Th>Precio</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-          <Button mt="md" color="green">Guardar precios</Button>
+              </Table.Thead>
+              <Table.Tbody>
+                {Object.entries(preciosIniciales).map(([tipo, valor]) => (
+                  <Table.Tr key={tipo}>
+                    <Table.Td>{tipo}</Table.Td>
+                    <Table.Td><Text fw={500}>{formatPrecio(valor)}</Text></Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
         </Tabs.Panel>
 
         {/* ── HORARIOS ── */}
@@ -93,146 +123,87 @@ export default function ConfigPage() {
           <Stack gap="lg">
             <div>
               <Text fw={500} mb="sm">Días hábiles</Text>
-              <Checkbox.Group value={diasHabiles} onChange={setDiasHabiles}>
-                <Group gap="md">
-                  {diasSemana.map(d => (
-                    <Checkbox key={d} value={d} label={d} />
-                  ))}
-                </Group>
-              </Checkbox.Group>
+              <Group gap="xs">
+                {diasHabiles.map(d => (
+                  <Badge key={d} variant="light" color="blue">{d}</Badge>
+                ))}
+              </Group>
             </div>
             <SimpleGrid cols={2}>
               <div>
-                <Text fw={500} mb="xs">Apertura</Text>
-                <TextInput
-                  type="time"
-                  value={apertura}
-                  onChange={e => setApertura(e.target.value)}
-                  style={{ width: 140 }}
-                />
+                <Text fw={500} mb={4}>Apertura</Text>
+                <Text c="dimmed">{apertura}</Text>
               </div>
               <div>
-                <Text fw={500} mb="xs">Cierre</Text>
-                <TextInput
-                  type="time"
-                  value={cierre}
-                  onChange={e => setCierre(e.target.value)}
-                  style={{ width: 140 }}
-                />
+                <Text fw={500} mb={4}>Cierre</Text>
+                <Text c="dimmed">{cierre}</Text>
               </div>
             </SimpleGrid>
-            <Button color="green" style={{ width: 'fit-content' }}>Guardar horarios</Button>
           </Stack>
         </Tabs.Panel>
 
         {/* ── LÍNEAS ── */}
         <Tabs.Panel value="lineas" pt="lg">
-          <Title order={4} mb="md">Gestión de líneas</Title>
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Línea</Table.Th>
-                <Table.Th>Capacidad/hora</Table.Th>
-                <Table.Th>Activa</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {lineas.map(l => (
-                <Table.Tr key={l.id}>
-                  <Table.Td>{l.nombre}</Table.Td>
-                  <Table.Td>
-                    <NumberInput
-                      value={l.capacidad}
-                      onChange={v => setLineas(prev => prev.map(x => x.id === l.id ? { ...x, capacidad: Number(v) } : x))}
-                      min={1} max={20}
-                      size="xs"
-                      style={{ width: 100 }}
-                    />
-                  </Table.Td>
-                  <Table.Td>
-                    <Switch
-                      checked={l.activa}
-                      onChange={() => setLineas(prev => prev.map(x => x.id === l.id ? { ...x, activa: !x.activa } : x))}
-                    />
-                  </Table.Td>
+          <Title order={4} mb="md">Líneas de revisión</Title>
+          <ScrollArea>
+            <Table style={{ minWidth: 300 }}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Línea</Table.Th>
+                  <Table.Th>Capacidad/hora</Table.Th>
+                  <Table.Th>Estado</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-          <Button mt="md" color="green">Guardar líneas</Button>
+              </Table.Thead>
+              <Table.Tbody>
+                {lineas.map(l => (
+                  <Table.Tr key={l.id}>
+                    <Table.Td>{l.nombre}</Table.Td>
+                    <Table.Td>{l.capacidad} vehículos</Table.Td>
+                    <Table.Td>
+                      <Badge variant="light" color={l.activa ? 'teal' : 'gray'}>
+                        {l.activa ? 'Activa' : 'Inactiva'}
+                      </Badge>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
         </Tabs.Panel>
 
         {/* ── USUARIOS ── */}
         <Tabs.Panel value="usuarios" pt="lg">
-          <Group justify="space-between" align="center" mb="md">
-            <Title order={4}>Usuarios del sistema</Title>
-            <Button size="sm" leftSection={<IconPlus size={16} />} onClick={() => setModalUsuario(true)}>
-              Agregar usuario
-            </Button>
-          </Group>
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Nombre</Table.Th>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Rol</Table.Th>
-                <Table.Th>Línea</Table.Th>
-                <Table.Th>Activo</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {usuarios.map(u => (
-                <Table.Tr key={u.id}>
-                  <Table.Td>{u.nombre}</Table.Td>
-                  <Table.Td><Text size="sm" c="dimmed">{u.email}</Text></Table.Td>
-                  <Table.Td>{u.rol}</Table.Td>
-                  <Table.Td>{u.linea ?? '—'}</Table.Td>
-                  <Table.Td>
-                    <Switch checked={u.activo} onChange={() => toggleUsuario(u.id)} />
-                  </Table.Td>
+          <Title order={4} mb="md">Usuarios del sistema</Title>
+          <ScrollArea>
+            <Table striped highlightOnHover style={{ minWidth: 480 }}>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Nombre</Table.Th>
+                  <Table.Th>Email</Table.Th>
+                  <Table.Th>Rol</Table.Th>
+                  <Table.Th>Línea</Table.Th>
+                  <Table.Th>Estado</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {usuariosIniciales.map(u => (
+                  <Table.Tr key={u.id}>
+                    <Table.Td>{u.nombre}</Table.Td>
+                    <Table.Td><Text size="sm" c="dimmed">{u.email}</Text></Table.Td>
+                    <Table.Td>{u.rol}</Table.Td>
+                    <Table.Td>{u.linea ?? '—'}</Table.Td>
+                    <Table.Td>
+                      <Badge variant="light" color={u.activo ? 'teal' : 'gray'}>
+                        {u.activo ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
         </Tabs.Panel>
       </Tabs>
-
-      {/* Modal nuevo usuario */}
-      <Modal opened={modalUsuario} onClose={() => setModalUsuario(false)} title="Agregar usuario" centered>
-        <Stack>
-          <TextInput
-            label="Nombre completo"
-            value={nuevoUsuario.nombre}
-            onChange={e => setNuevoUsuario(p => ({ ...p, nombre: e.target.value }))}
-          />
-          <TextInput
-            label="Email"
-            type="email"
-            value={nuevoUsuario.email}
-            onChange={e => setNuevoUsuario(p => ({ ...p, email: e.target.value }))}
-          />
-          <Select
-            label="Rol"
-            value={nuevoUsuario.rol}
-            onChange={v => setNuevoUsuario(p => ({ ...p, rol: v as Usuario['rol'] }))}
-            data={[
-              { value: 'TECNICO', label: 'Técnico' },
-              { value: 'CAJERA', label: 'Cajera' },
-              { value: 'DIRECTOR', label: 'Director' },
-            ]}
-          />
-          <Group justify="flex-end">
-            <Button variant="light" onClick={() => setModalUsuario(false)}>Cancelar</Button>
-            <Button
-              color="green"
-              onClick={agregarUsuario}
-              disabled={!nuevoUsuario.nombre || !nuevoUsuario.email}
-            >
-              Agregar
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Stack>
   )
 }

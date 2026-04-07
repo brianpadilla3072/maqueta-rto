@@ -3,7 +3,7 @@ import { useState } from 'react'
 import {
   Stack, Title, TextInput, Button, Group, Card, Text, Badge,
   SimpleGrid, ThemeIcon, Alert, Divider, NumberInput, Radio,
-  Modal, Table, Tabs,
+  Modal, Table, Tabs, ScrollArea,
 } from '@mantine/core'
 import {
   IconSearch, IconUser, IconCar, IconCash, IconAlertTriangle,
@@ -69,7 +69,6 @@ export default function CajaPage() {
             rightSection={pendientes.length > 0 ? <Badge size="xs" color="orange">{pendientes.length}</Badge> : null}>
             Transferencias
           </Tabs.Tab>
-          <Tabs.Tab value="cierre" leftSection={<IconCircleCheck size={16} />}>Cierre de caja</Tabs.Tab>
         </Tabs.List>
 
         {/* ── COBRO ── */}
@@ -174,99 +173,70 @@ export default function CajaPage() {
           {pendientes.length === 0 ? (
             <Text c="dimmed">No hay transferencias pendientes.</Text>
           ) : (
-            <Table striped highlightOnHover>
+            <ScrollArea>
+              <Table striped highlightOnHover style={{ minWidth: 500 }}>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Hora</Table.Th>
+                    <Table.Th>Patente</Table.Th>
+                    <Table.Th>Titular</Table.Th>
+                    <Table.Th>Monto</Table.Th>
+                    <Table.Th>Acciones</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {pendientes.map(c => (
+                    <Table.Tr key={c.id}>
+                      <Table.Td>{c.hora}</Table.Td>
+                      <Table.Td><Text ff="monospace" fw={600}>{c.patente}</Text></Table.Td>
+                      <Table.Td>{c.titular}</Table.Td>
+                      <Table.Td>{formatPesos(c.monto)}</Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <Button size="xs" color="green" onClick={() => aprobarTransferencia(c.id)}>Aprobar</Button>
+                          <Button size="xs" color="red" variant="light" onClick={() => rechazarTransferencia(c.id)}>Rechazar</Button>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
+
+          <Divider my="lg" label="Historial del día" />
+          <ScrollArea>
+            <Table style={{ minWidth: 560 }}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Hora</Table.Th>
                   <Table.Th>Patente</Table.Th>
                   <Table.Th>Titular</Table.Th>
                   <Table.Th>Monto</Table.Th>
-                  <Table.Th>Acciones</Table.Th>
+                  <Table.Th>Medio</Table.Th>
+                  <Table.Th>Estado</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {pendientes.map(c => (
+                {cobros.map(c => (
                   <Table.Tr key={c.id}>
                     <Table.Td>{c.hora}</Table.Td>
-                    <Table.Td><Text ff="monospace" fw={600}>{c.patente}</Text></Table.Td>
+                    <Table.Td><Text ff="monospace" size="sm">{c.patente}</Text></Table.Td>
                     <Table.Td>{c.titular}</Table.Td>
                     <Table.Td>{formatPesos(c.monto)}</Table.Td>
+                    <Table.Td>{c.medio}</Table.Td>
                     <Table.Td>
-                      <Group gap="xs">
-                        <Button size="xs" color="green" onClick={() => aprobarTransferencia(c.id)}>Aprobar</Button>
-                        <Button size="xs" color="red" variant="light" onClick={() => rechazarTransferencia(c.id)}>Rechazar</Button>
-                      </Group>
+                      <Badge size="sm" color={c.estado === 'PAGADO' ? 'green' : c.estado === 'PENDIENTE_VALIDACION' ? 'orange' : 'red'}>
+                        {c.estado === 'PAGADO' ? 'Pagado' : c.estado === 'PENDIENTE_VALIDACION' ? 'Pendiente' : 'Rechazado'}
+                      </Badge>
                     </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
             </Table>
-          )}
-
-          <Divider my="lg" label="Historial del día" />
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Hora</Table.Th>
-                <Table.Th>Patente</Table.Th>
-                <Table.Th>Titular</Table.Th>
-                <Table.Th>Monto</Table.Th>
-                <Table.Th>Medio</Table.Th>
-                <Table.Th>Estado</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {cobros.map(c => (
-                <Table.Tr key={c.id}>
-                  <Table.Td>{c.hora}</Table.Td>
-                  <Table.Td><Text ff="monospace" size="sm">{c.patente}</Text></Table.Td>
-                  <Table.Td>{c.titular}</Table.Td>
-                  <Table.Td>{formatPesos(c.monto)}</Table.Td>
-                  <Table.Td>{c.medio}</Table.Td>
-                  <Table.Td>
-                    <Badge size="sm" color={c.estado === 'PAGADO' ? 'green' : c.estado === 'PENDIENTE_VALIDACION' ? 'orange' : 'red'}>
-                      {c.estado === 'PAGADO' ? 'Pagado' : c.estado === 'PENDIENTE_VALIDACION' ? 'Pendiente' : 'Rechazado'}
-                    </Badge>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+          </ScrollArea>
         </Tabs.Panel>
 
-        {/* ── CIERRE DE CAJA ── */}
-        <Tabs.Panel value="cierre" pt="lg">
-          <SimpleGrid cols={{ base:1, sm:3 }} mb="lg">
-            {[
-              { label: 'Efectivo', total: totalEfectivo, color: 'green' },
-              { label: 'Posnet', total: totalPosnet, color: 'blue' },
-              { label: 'Transferencia', total: totalTransferencia, color: 'violet' },
-            ].map(({ label, total, color }) => (
-              <Card key={label} withBorder>
-                <Text size="xs" c="dimmed" mb={4}>{label}</Text>
-                <Text size="xl" fw={700} c={color}>{formatPesos(total)}</Text>
-                <NumberInput
-                  label="Arqueo real"
-                  prefix="$ "
-                  thousandSeparator="."
-                  decimalSeparator=","
-                  defaultValue={total}
-                  mt="sm"
-                  size="sm"
-                />
-              </Card>
-            ))}
-          </SimpleGrid>
-          <Card withBorder>
-            <Group justify="space-between">
-              <Text fw={600}>Total del día</Text>
-              <Text fw={700} size="xl" c="green">{formatPesos(totalEfectivo + totalPosnet + totalTransferencia)}</Text>
-            </Group>
-          </Card>
-          <Button mt="md" color="green" leftSection={<IconCircleCheck size={16} />}>
-            Cerrar caja del día
-          </Button>
-        </Tabs.Panel>
       </Tabs>
 
       {/* Modal confirmación cobro */}

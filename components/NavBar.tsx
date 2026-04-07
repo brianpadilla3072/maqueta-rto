@@ -8,13 +8,14 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useRol, type Rol } from '@/contexts/RoleContext'
 
 const items = [
-  { href: '/turno',   label: 'Turnero',   icon: IconCalendar,         roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
-  { href: '/kiosk',   label: 'Kiosk',     icon: IconDeviceTablet,     roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
-  { href: '/display', label: 'Display',   icon: IconDeviceTv,         roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
-  { href: '/caja',    label: 'Caja',      icon: IconCash,             roles: ['Cajera', 'Director'] },
-  { href: '/tecnico', label: 'Técnico',   icon: IconTool,             roles: ['Técnico', 'Director'] },
-  { href: '/admin',   label: 'Admin',     icon: IconLayoutDashboard,  roles: ['Cajera', 'Director'] },
-  { href: '/config',  label: 'Config',    icon: IconSettings,         roles: ['Director'] },
+  { href: '/dashboard', label: 'Inicio',   icon: IconLayoutDashboard,  roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
+  { href: '/turno',     label: 'Turnero',  icon: IconCalendar,         roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
+  { href: '/kiosk',     label: 'Kiosk',    icon: IconDeviceTablet,     roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
+  { href: '/display',   label: 'Display',  icon: IconDeviceTv,         roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
+  { href: '/caja',      label: 'Caja',     icon: IconCash,             roles: ['Cajera', 'Director'] },
+  { href: '/tecnico',   label: 'Técnico',  icon: IconTool,             roles: ['Técnico', 'Director'] },
+  { href: '/admin',     label: 'Admin',    icon: IconLayoutDashboard,  roles: ['Cajera', 'Director'] },
+  { href: '/config',    label: 'Config',   icon: IconSettings,         roles: ['Director'] },
 ]
 
 export default function NavBar() {
