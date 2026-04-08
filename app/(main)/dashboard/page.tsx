@@ -16,8 +16,8 @@ function useDashboardData() {
   const finalizados = colaInicial.filter(i => i.estado === 'FINALIZADO').length
   const totalCola   = colaInicial.length
 
-  const cobrosPagados     = cobrosIniciales.filter(c => c.estado === 'PAGADO')
-  const cobrosPendientes  = cobrosIniciales.filter(c => c.estado === 'PENDIENTE_VALIDACION')
+  const cobrosPagados     = cobrosIniciales.filter(c => c.estado === 'FACTURADO')
+  const cobrosPendientes  = cobrosIniciales.filter(c => c.estado === 'PENDIENTE_FACTURACION')
   const totalCobrado      = cobrosPagados.reduce((acc, c) => acc + c.monto, 0)
 
   return { enEspera, enRevision, finalizados, totalCola, cobrosPagados, cobrosPendientes, totalCobrado }

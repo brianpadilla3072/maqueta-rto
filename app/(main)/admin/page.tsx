@@ -9,26 +9,33 @@ import {
   IconCircleCheck, IconX,
 } from '@tabler/icons-react'
 import { condicionalesVencidos, cobrosIniciales, colaInicial, formatPesos, type Cobro } from '@/lib/mock'
+import { ConfirmModal } from '@/components/ConfirmModal'
+
+type ConfirmState = { action: () => void; title: string; message: string; color?: string } | null
 
 export default function AdminPage() {
   const [condicionales, setCondicionales] = useState(condicionalesVencidos)
   const [cobros, setCobros] = useState<Cobro[]>(cobrosIniciales)
   const [modalCondicional, setModalCondicional] = useState<string | null>(null)
   const [cola] = useState(colaInicial)
+  const [confirm, setConfirm] = useState<ConfirmState>(null)
+
+  const pedir = (action: () => void, title: string, message: string, color?: string) =>
+    setConfirm({ action, title, message, color })
 
   const forzarTurno = (id: string) => {
     setCondicionales(prev => prev.filter(c => c.id !== id))
     setModalCondicional(null)
   }
 
-  const aprobar = (id: string) => setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'PAGADO' } : c))
-  const rechazar = (id: string) => setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'RECHAZADO' } : c))
+  const aprobar = (id: string) => setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'FACTURADO' as const } : c))
+  const rechazar = (id: string) => setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'ANULADO' as const } : c))
 
-  const pendientes = cobros.filter(c => c.estado === 'PENDIENTE_VALIDACION')
+  const pendientes = cobros.filter(c => c.estado === 'PENDIENTE_FACTURACION')
 
-  const totalEfectivo = cobros.filter(c => c.estado === 'PAGADO' && c.medio === 'Efectivo').reduce((a,b)=>a+b.monto,0)
-  const totalPosnet   = cobros.filter(c => c.estado === 'PAGADO' && c.medio === 'Posnet').reduce((a,b)=>a+b.monto,0)
-  const totalTransf   = cobros.filter(c => c.estado === 'PAGADO' && c.medio === 'Transferencia').reduce((a,b)=>a+b.monto,0)
+  const totalEfectivo = cobros.filter(c => c.estado === 'FACTURADO' && c.medio === 'Efectivo').reduce((a,b)=>a+b.monto,0)
+  const totalPosnet   = cobros.filter(c => c.estado === 'FACTURADO' && c.medio === 'Posnet').reduce((a,b)=>a+b.monto,0)
+  const totalTransf   = cobros.filter(c => c.estado === 'FACTURADO' && c.medio === 'Transferencia').reduce((a,b)=>a+b.monto,0)
 
   const selCondicional = condicionales.find(c => c.id === modalCondicional)
 
@@ -116,8 +123,22 @@ export default function AdminPage() {
                     <Table.Td>{formatPesos(c.monto)}</Table.Td>
                     <Table.Td>
                       <Group gap="xs">
-                        <Button size="xs" color="green" leftSection={<IconCircleCheck size={14} />} onClick={() => aprobar(c.id)}>Aprobar</Button>
-                        <Button size="xs" color="red" variant="light" leftSection={<IconX size={14} />} onClick={() => rechazar(c.id)}>Rechazar</Button>
+                        <Button size="xs" color="green" leftSection={<IconCircleCheck size={14} />} onClick={() =>
+                          pedir(
+                            () => aprobar(c.id),
+                            'Aprobar transferencia',
+                            `¿Confirmar la acreditación de ${c.patente} — ${formatPesos(c.monto)}?`,
+                            'green',
+                          )
+                        }>Aprobar</Button>
+                        <Button size="xs" color="red" variant="light" leftSection={<IconX size={14} />} onClick={() =>
+                          pedir(
+                            () => rechazar(c.id),
+                            'Rechazar pago',
+                            `¿Rechazar el pago de ${c.patente}? Se registrará como anulado.`,
+                            'red',
+                          )
+                        }>Rechazar</Button>
                       </Group>
                     </Table.Td>
                   </Table.Tr>
@@ -181,8 +202,8 @@ export default function AdminPage() {
                   <Table.Td>{item.tipo}</Table.Td>
                   <Table.Td>{item.linea}</Table.Td>
                   <Table.Td>
-                    <Badge size="xs" color={item.prioridad === 'CON_TURNO' ? 'teal' : 'gray'} variant="light">
-                      {item.prioridad === 'CON_TURNO' ? 'Con turno' : 'Sin turno'}
+                    <Badge size="xs" color={item.prioridad === 'CON_TURNO' ? 'teal' : 'blue'} variant="light">
+                      {item.prioridad === 'CON_TURNO' ? 'Con turno' : 'Turno en el día'}
                     </Badge>
                   </Table.Td>
                   <Table.Td>
@@ -210,6 +231,15 @@ export default function AdminPage() {
           </Group>
         </Stack>
       </Modal>
+
+      <ConfirmModal
+        opened={confirm !== null}
+        onClose={() => setConfirm(null)}
+        onConfirm={confirm?.action ?? (() => {})}
+        title={confirm?.title ?? ''}
+        message={confirm?.message ?? ''}
+        confirmColor={confirm?.color}
+      />
     </Stack>
   )
 }

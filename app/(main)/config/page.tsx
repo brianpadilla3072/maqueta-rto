@@ -146,26 +146,40 @@ export default function ConfigPage() {
         <Tabs.Panel value="lineas" pt="lg">
           <Title order={4} mb="md">Líneas de revisión</Title>
           <ScrollArea>
-            <Table style={{ minWidth: 300 }}>
+            <Table style={{ minWidth: 380 }}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Línea</Table.Th>
                   <Table.Th>Capacidad/hora</Table.Th>
+                  <Table.Th>Técnicos asignados</Table.Th>
                   <Table.Th>Estado</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {lineas.map(l => (
-                  <Table.Tr key={l.id}>
-                    <Table.Td>{l.nombre}</Table.Td>
-                    <Table.Td>{l.capacidad} vehículos</Table.Td>
-                    <Table.Td>
-                      <Badge variant="light" color={l.activa ? 'teal' : 'gray'}>
-                        {l.activa ? 'Activa' : 'Inactiva'}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
+                {lineas.map(l => {
+                  const tecnicos = usuariosIniciales.filter(u => u.rol === 'TECNICO' && u.linea === l.id)
+                  return (
+                    <Table.Tr key={l.id}>
+                      <Table.Td>{l.nombre}</Table.Td>
+                      <Table.Td>{l.capacidad} vehículos</Table.Td>
+                      <Table.Td>
+                        {tecnicos.length === 0
+                          ? <Text size="xs" c="dimmed">Sin asignar</Text>
+                          : <Group gap="xs">
+                              {tecnicos.map(t => (
+                                <Badge key={t.id} variant="light" color="blue" size="sm">{t.nombre}</Badge>
+                              ))}
+                            </Group>
+                        }
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge variant="light" color={l.activa ? 'teal' : 'gray'}>
+                          {l.activa ? 'Activa' : 'Inactiva'}
+                        </Badge>
+                      </Table.Td>
+                    </Table.Tr>
+                  )
+                })}
               </Table.Tbody>
             </Table>
           </ScrollArea>

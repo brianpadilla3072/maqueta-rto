@@ -2,16 +2,19 @@
 import { useState, useEffect } from 'react'
 import {
   Stack, Title, Card, Group, Text, Badge, Button, ThemeIcon,
-  SimpleGrid, Alert, Collapse, TextInput, SegmentedControl,
-  Divider, Grid, Transition,
+  SimpleGrid, Alert, Collapse, TextInput, Textarea, SegmentedControl, Drawer,
+  Divider, Grid, ActionIcon, Tooltip, Modal,
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import {
   IconCar, IconCheck, IconX, IconAlertTriangle, IconPlayerPlay,
-  IconClock, IconHistory, IconSearch, IconChevronDown, IconChevronUp,
-  IconFileDescription,
+  IconClock, IconHistory, IconSearch, IconFileDescription,
+  IconChevronDown, IconChevronUp,
 } from '@tabler/icons-react'
 import { colaInicial, vehiculos, type ColaItem, type EstadoCola, type Vehiculo } from '@/lib/mock'
+import { ConfirmModal } from '@/components/ConfirmModal'
+
+type ConfirmState = { action: () => void; title: string; message: string; color?: string } | null
 
 // ── Tipos ──────────────────────────────────────────────────────────
 type Resultado = 'APROBADO' | 'CONDICIONAL' | 'RECHAZADO'
@@ -94,8 +97,8 @@ function FichaVehiculo({ v }: { v: Vehiculo }) {
       <Grid gutter="xs">
         {campos.map(([label, valor]) => (
           <Grid.Col key={label} span={6}>
-            <Group gap={4} wrap="nowrap">
-              <Text size="xs" c="dimmed" style={{ minWidth: 110, flexShrink: 0 }}>{label}:</Text>
+            <Stack gap={0}>
+              <Text size="xs" c="dimmed">{label}</Text>
               <Text size="xs" fw={500}
                 c={
                   (label === 'Carga peligrosa' && v.peligrosa) ? 'red' :
@@ -105,7 +108,7 @@ function FichaVehiculo({ v }: { v: Vehiculo }) {
               >
                 {valor}
               </Text>
-            </Group>
+            </Stack>
           </Grid.Col>
         ))}
       </Grid>
@@ -139,8 +142,8 @@ function ItemCard({
             </Text>
             <Text size="xs" c="dimmed">{item.titular} · {item.tipo}</Text>
             <Group gap="xs" mt={2}>
-              <Badge size="xs" color={item.prioridad === 'CON_TURNO' ? 'teal' : 'gray'} variant="light">
-                {item.prioridad === 'CON_TURNO' ? 'Con turno' : 'Sin turno'}
+              <Badge size="xs" color={item.prioridad === 'CON_TURNO' ? 'teal' : 'blue'} variant="light">
+                {item.prioridad === 'CON_TURNO' ? 'Con turno' : 'Turno en el día'}
               </Badge>
               <Badge size="xs" color={colorEstado[item.estado]} variant="light">
                 {labelEstado[item.estado]}
@@ -218,23 +221,24 @@ function HistorialContent({
   colorResultado,
 }: {
   histFiltrado: HistorialItem[]
-  filtroDia: 'hoy' | 'ayer' | 'semana'
-  setFiltroDia: (v: 'hoy' | 'ayer' | 'semana') => void
+  filtroDia: 'hoy' | 'mes' | 'todo'
+  setFiltroDia: (v: 'hoy' | 'mes' | 'todo') => void
   busqueda: string
   setBusqueda: (v: string) => void
   colorResultado: Record<Resultado, string>
 }) {
   return (
     <>
-      <Group px="md" pt="md" pb="sm" gap="sm" wrap="wrap">
+      <Stack px="md" pt="md" pb="sm" gap="sm">
         <SegmentedControl
           size="xs"
+          fullWidth
           value={filtroDia}
           onChange={v => setFiltroDia(v as typeof filtroDia)}
           data={[
-            { value: 'hoy',    label: 'Hoy' },
-            { value: 'ayer',   label: 'Ayer' },
-            { value: 'semana', label: 'Últimos 7 días' },
+            { value: 'hoy',  label: 'Hoy' },
+            { value: 'mes',  label: 'Mes' },
+            { value: 'todo', label: 'Completo' },
           ]}
         />
         <TextInput
@@ -245,7 +249,7 @@ function HistorialContent({
           onChange={e => setBusqueda(e.target.value)}
           style={{ flex: 1, minWidth: 200 }}
         />
-      </Group>
+      </Stack>
 
       <Stack gap={0} px="md" pb="md">
         {histFiltrado.length === 0 ? (
@@ -290,16 +294,22 @@ export default function TecnicoPage() {
   const [cola, setCola]           = useState<ColaItem[]>(colaInicial.filter(i => i.linea === 1))
   const [historial, setHistorial] = useState<HistorialItem[]>(historialMock)
   const [histAbierto, setHistAbierto] = useState(false)
-  const [filtroDia, setFiltroDia] = useState<'hoy' | 'ayer' | 'semana'>('hoy')
+  const [filtroDia, setFiltroDia] = useState<'hoy' | 'mes' | 'todo'>('hoy')
   const [busqueda, setBusqueda]   = useState('')
   const [linea]  = useState(1)
+  const [confirm, setConfirm] = useState<ConfirmState>(null)
+  const [condicionalItem, setCondicionalItem] = useState<ColaItem | null>(null)
+  const [motivo, setMotivo] = useState('')
   const tecnico = 'Carlos García'
+
+  const pedir = (action: () => void, title: string, message: string, color?: string) =>
+    setConfirm({ action, title, message, color })
   const isDesktop = useMediaQuery('(min-width: 768px)')
 
   const avanzar = (id: string, nuevoEstado: EstadoCola) =>
     setCola(prev => prev.map(i => i.id === id ? { ...i, estado: nuevoEstado } : i))
 
-  const finalizar = (item: ColaItem, resultado: Resultado) => {
+  const finalizar = (item: ColaItem, resultado: Resultado, observacion?: string) => {
     avanzar(item.id, 'FINALIZADO')
     const horaActual = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
     setHistorial(prev => [{
@@ -308,34 +318,120 @@ export default function TecnicoPage() {
       titular: item.titular,
       tipo: item.tipo,
       resultado,
+      observacion,
       hora: horaActual,
       fecha: HOY,
     }, ...prev])
+  }
+
+  const confirmarCondicional = () => {
+    if (!condicionalItem) return
+    finalizar(condicionalItem, 'CONDICIONAL', motivo.trim() || undefined)
+    setCondicionalItem(null)
+    setMotivo('')
   }
 
   const ahora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 
   const histFiltrado = historial.filter(h => {
     const q = busqueda.trim().toLowerCase()
-    if (q && !h.patente.toLowerCase().includes(q) && !h.titular.toLowerCase().includes(q)) return false
-    if (filtroDia === 'hoy')   return h.fecha === HOY
-    if (filtroDia === 'ayer')  return h.fecha === AYER
-    const hace7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
-    return h.fecha >= hace7
+    if (q) return h.patente.toLowerCase().includes(q) || h.titular.toLowerCase().includes(q)
+    if (filtroDia === 'hoy') return h.fecha === HOY
+    if (filtroDia === 'mes') {
+      const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+      return h.fecha >= inicioMes
+    }
+    return true
   })
 
   const conObservacion = histFiltrado.filter(h => h.resultado !== 'APROBADO').length
 
-  // ── Contenido de columna izquierda ────────────────────────────
-  const leftCol = (
-    <Stack gap="md" style={{ flex: isDesktop ? 1 : undefined, minWidth: 0 }}>
+  const histBtn = (
+    <Tooltip label={`Historial${histFiltrado.length > 0 ? ` · ${histFiltrado.length} registros` : ''}`} withArrow>
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <ActionIcon
+          variant={histAbierto ? 'filled' : 'light'}
+          color="blue"
+          size="md"
+          onClick={() => setHistAbierto(v => !v)}
+        >
+          <IconHistory size={16} />
+        </ActionIcon>
+        {conObservacion > 0 && (
+          <div style={{
+            position: 'absolute', top: -4, right: -4,
+            background: 'var(--mantine-color-orange-6)',
+            color: '#fff', borderRadius: '50%',
+            width: 14, height: 14,
+            fontSize: 9, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1,
+          }}>
+            {conObservacion}
+          </div>
+        )}
+      </div>
+    </Tooltip>
+  )
+
+  const itemCards = cola.filter(i => i.estado !== 'FINALIZADO').map(item => (
+    <ItemCard key={item.id} item={item}
+      onAvanzar={(id, estado) => {
+        const labels: Record<string, { title: string; msg: string }> = {
+          INGRESO:     { title: 'Confirmar ingreso', msg: `¿Ingresar a ${item.patente} (${item.titular}) a la línea?` },
+          EN_REVISION: { title: 'Iniciar revisión',  msg: `¿Iniciar la revisión de ${item.patente} (${item.titular})?` },
+        }
+        const l = labels[estado]
+        if (l) pedir(() => avanzar(id, estado), l.title, l.msg)
+        else avanzar(id, estado)
+      }}
+      onFinalizar={(it, resultado) => {
+        if (resultado === 'CONDICIONAL') {
+          setMotivo('')
+          setCondicionalItem(it)
+          return
+        }
+        const labels: Record<string, { title: string; msg: string; color: string }> = {
+          APROBADO:  { title: 'Aprobar vehículo',  msg: `¿Aprobar la revisión de ${it.patente}?`,                                  color: 'green' },
+          RECHAZADO: { title: 'Rechazar vehículo', msg: `¿Rechazar la revisión de ${it.patente}? El vehículo no aprueba la RTO.`, color: 'red'   },
+        }
+        const l = labels[resultado]
+        pedir(() => finalizar(it, resultado), l.title, l.msg, l.color)
+      }}
+    />
+  ))
+
+  const historialDrawer = (
+    <Drawer
+      opened={histAbierto}
+      onClose={() => setHistAbierto(false)}
+      title="Historial del día"
+      position={isDesktop ? 'right' : 'bottom'}
+      size={isDesktop ? 400 : '90%'}
+      styles={{ body: { padding: 0 } }}
+    >
+      <HistorialContent
+        histFiltrado={histFiltrado}
+        filtroDia={filtroDia}
+        setFiltroDia={setFiltroDia}
+        busqueda={busqueda}
+        setBusqueda={setBusqueda}
+        colorResultado={colorResultado}
+      />
+    </Drawer>
+  )
+
+  return (
+    <Stack gap="md">
       <Group justify="space-between" align="center">
         <Title order={2}>Técnico — Línea {linea}</Title>
-        <Text size="sm" c="dimmed">{tecnico} · {ahora}</Text>
+        <Group gap="sm">
+          <Text size="sm" c="dimmed">{tecnico} · {ahora}</Text>
+          {histBtn}
+        </Group>
       </Group>
 
-      {/* KPIs */}
-      <SimpleGrid cols={3}>
+      <SimpleGrid cols={{ base: 3 }}>
         {(['EN_ESPERA', 'EN_REVISION', 'FINALIZADO'] as EstadoCola[]).map(e => {
           const n = cola.filter(i => i.estado === e).length
           return (
@@ -347,12 +443,8 @@ export default function TecnicoPage() {
         })}
       </SimpleGrid>
 
-      {/* Cola activa */}
       <Stack gap="md">
-        {cola.filter(i => i.estado !== 'FINALIZADO').map(item => (
-          <ItemCard key={item.id} item={item} onAvanzar={avanzar} onFinalizar={finalizar} />
-        ))}
-
+        {itemCards}
         {cola.filter(i => i.estado !== 'FINALIZADO').length === 0 && (
           <Alert icon={<IconCheck size={16} />} color="green" title="Cola vacía">
             No hay vehículos en cola por el momento.
@@ -360,97 +452,47 @@ export default function TecnicoPage() {
         )}
       </Stack>
 
-      {!isDesktop && <Divider />}
+      {historialDrawer}
 
-      {/* Header del historial — siempre visible en izquierda */}
-      <Card withBorder radius="lg" p={0}>
-        <Group
-          justify="space-between"
-          px="md" py="sm"
-          style={{ cursor: 'pointer' }}
-          onClick={() => setHistAbierto(v => !v)}
-        >
-          <Group gap="sm">
-            <IconHistory size={18} />
-            <Text fw={600}>Historial del día</Text>
-            {conObservacion > 0 && (
-              <Badge size="xs" color="orange" variant="light">
-                {conObservacion} con observación
-              </Badge>
-            )}
-            <Badge size="xs" color="gray" variant="light">
-              {histFiltrado.length} registros
-            </Badge>
+      {/* Modal motivo condicional */}
+      <Modal
+        opened={condicionalItem !== null}
+        onClose={() => setCondicionalItem(null)}
+        title="Resultado condicional"
+        centered
+        size="sm"
+      >
+        <Stack>
+          <Text size="sm">
+            Ingresá el motivo del condicional para <b>{condicionalItem?.patente}</b>.
+          </Text>
+          <Textarea
+            label="Motivo"
+            placeholder="Ej: Luces defectuosas, frenos en mal estado..."
+            value={motivo}
+            onChange={e => setMotivo(e.target.value)}
+            autosize
+            minRows={3}
+            autoFocus
+          />
+          <Group justify="flex-end">
+            <Button variant="light" onClick={() => setCondicionalItem(null)}>Cancelar</Button>
+            <Button color="orange" onClick={confirmarCondicional} disabled={!motivo.trim()}>
+              Confirmar condicional
+            </Button>
           </Group>
-          {isDesktop ? (
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <IconChevronDown
-                size={16}
-                style={{
-                  transform: histAbierto ? 'rotate(-90deg)' : 'rotate(90deg)',
-                  transition: 'transform 0.2s ease',
-                }}
-              />
-            </div>
-          ) : histAbierto ? (
-            <IconChevronUp size={16} />
-          ) : (
-            <IconChevronDown size={16} />
-          )}
-        </Group>
+        </Stack>
+      </Modal>
 
-        {/* Collapse para mobile */}
-        {!isDesktop && (
-          <Collapse in={histAbierto}>
-            <Divider />
-            <HistorialContent
-              histFiltrado={histFiltrado}
-              filtroDia={filtroDia}
-              setFiltroDia={setFiltroDia}
-              busqueda={busqueda}
-              setBusqueda={setBusqueda}
-              colorResultado={colorResultado}
-            />
-          </Collapse>
-        )}
-      </Card>
+      <ConfirmModal
+        opened={confirm !== null}
+        onClose={() => setConfirm(null)}
+        onConfirm={confirm?.action ?? (() => {})}
+        title={confirm?.title ?? ''}
+        message={confirm?.message ?? ''}
+        confirmColor={confirm?.color}
+      />
     </Stack>
   )
-
-  // ── Layout condicional ────────────────────────────────────────
-  if (!isDesktop) {
-    return <Stack maw={700} mx="auto">{leftCol}</Stack>
-  }
-
-  // Desktop: layout horizontal con panel derecho
-  return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', padding: '24px' }}>
-      {leftCol}
-
-      {/* Panel derecho — aparece cuando histAbierto */}
-      <Transition mounted={histAbierto} transition="slide-left" duration={200} timingFunction="ease">
-        {styles => (
-          <div
-            style={{
-              width: 360,
-              flexShrink: 0,
-              ...styles,
-            }}
-          >
-            <Card withBorder radius="lg" p={0}>
-              <Divider />
-              <HistorialContent
-                histFiltrado={histFiltrado}
-                filtroDia={filtroDia}
-                setFiltroDia={setFiltroDia}
-                busqueda={busqueda}
-                setBusqueda={setBusqueda}
-                colorResultado={colorResultado}
-              />
-            </Card>
-          </div>
-        )}
-      </Transition>
-    </div>
-  )
 }
+

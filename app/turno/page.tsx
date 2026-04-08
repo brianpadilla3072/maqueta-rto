@@ -1,5 +1,6 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Box, Stack, Text, TextInput, Button, Group, Card, Badge,
   SimpleGrid, ThemeIcon, Divider, Title, Alert, Grid,
@@ -46,7 +47,8 @@ function FacturacionTercero({ onConfirmar, onVolver }: { onConfirmar: () => void
 // ══════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ══════════════════════════════════════════════════════════════════
-export default function TurneroPage() {
+function TurneroInner() {
+  const searchParams = useSearchParams()
 
   // ── Estado ────────────────────────────────────────────────────
   const [step, setStep]                           = useState<Step>('patente')
@@ -64,6 +66,12 @@ export default function TurneroPage() {
   // para que los botones Volver de carga_peligrosa y advertencia_polarizados
   // no muestren tipo_vehiculo cuando el vehículo fue encontrado en el sistema.
   const [prevIdentificacion, setPrevIdentificacion] = useState<Step>('datos')
+
+  // ── Pre-rellenar patente desde URL param ─────────────────────
+  useEffect(() => {
+    const p = searchParams.get('patente')
+    if (p) setPatente(p.toUpperCase())
+  }, [])
 
   // ── Valores derivados ─────────────────────────────────────────
   const anio    = vehiculo?.anio ?? 2018
@@ -661,4 +669,8 @@ export default function TurneroPage() {
   )
 
   return null
+}
+
+export default function TurneroPage() {
+  return <Suspense><TurneroInner /></Suspense>
 }

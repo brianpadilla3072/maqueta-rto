@@ -12,24 +12,23 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useRol } from '@/contexts/RoleContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppColors } from '@/app/hooks/useAppColors'
-import type { ReactNode } from 'react'
+import { NAV_ITEMS } from '@/lib/nav'
+import type { ReactNode, ElementType } from 'react'
 
-// ── Nav items ──────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Inicio',   icon: IconLayoutDashboard, roles: ['Público', 'Técnico', 'Cajera', 'Director'] },
-  { href: '/caja',      label: 'Caja',     icon: IconCash,            roles: ['Cajera', 'Director'] },
-  { href: '/tecnico',   label: 'Técnico',  icon: IconTool,            roles: ['Técnico', 'Director'] },
-  { href: '/config',    label: 'Administración',   icon: IconSettings,        roles: ['Director'] },
-]
+const NAV_ICONS: Record<string, ElementType> = {
+  '/dashboard': IconLayoutDashboard,
+  '/caja': IconCash,
+  '/tecnico': IconTool,
+  '/config': IconSettings,
+}
 
 // ── SidebarNavItem ─────────────────────────────────────────────────
 function SidebarNavItem({
-  icon: Icon, label, active, dimmed, onClick, collapsed,
+  icon: Icon, label, active, onClick, collapsed,
 }: {
-  icon: React.ElementType
+  icon: ElementType
   label: string
   active: boolean
-  dimmed: boolean
   onClick: () => void
   collapsed: boolean
 }) {
@@ -51,7 +50,6 @@ function SidebarNavItem({
         borderLeft: active ? `2.5px solid ${C.info.color}` : '2.5px solid transparent',
         marginBottom: 2,
         transition: 'background 0.12s, border-color 0.12s',
-        opacity: dimmed ? 0.38 : 1,
       }}
     >
       <Icon size={16} color={active ? C.info.color : C.textMuted} style={{ flexShrink: 0 }} />
@@ -145,15 +143,13 @@ function NavContent({
       <div style={{ padding: '6px 10px', flex: 1 }}>
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-          const allowed = item.roles.includes(rol)
           return (
             <Tooltip key={item.href} label={item.label} position="right" withArrow disabled={!collapsed}>
               <div>
                 <SidebarNavItem
-                  icon={item.icon}
+                  icon={NAV_ICONS[item.href]}
                   label={item.label}
                   active={active}
-                  dimmed={!allowed}
                   onClick={() => navigate(item.href)}
                   collapsed={collapsed}
                 />
@@ -195,19 +191,19 @@ function NavContent({
                 </button>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Item icon={<IconUser size={14} />} disabled>
+                <Menu.Item leftSection={<IconUser size={14} />} disabled>
                   Perfil
                 </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item
-                  icon={isDark ? <IconSun size={14} color="#fbbf24" /> : <IconMoon size={14} color="#64748b" />}
+                  leftSection={isDark ? <IconSun size={14} color="#fbbf24" /> : <IconMoon size={14} color="#64748b" />}
                   onClick={toggleColorScheme}
                 >
                   {isDark ? 'Modo claro' : 'Modo oscuro'}
                 </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item
-                  icon={<IconLogout size={14} color="#ef4444" />}
+                  leftSection={<IconLogout size={14} color="#ef4444" />}
                   color="red"
                   onClick={handleLogout}
                 >
@@ -238,19 +234,19 @@ function NavContent({
               </Tooltip>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item icon={<IconUser size={14} />} disabled>
+              <Menu.Item leftSection={<IconUser size={14} />} disabled>
                 Perfil
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item
-                icon={isDark ? <IconSun size={14} color="#fbbf24" /> : <IconMoon size={14} color="#64748b" />}
+                leftSection={isDark ? <IconSun size={14} color="#fbbf24" /> : <IconMoon size={14} color="#64748b" />}
                 onClick={toggleColorScheme}
               >
                 {isDark ? 'Modo claro' : 'Modo oscuro'}
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item
-                icon={<IconLogout size={14} color="#ef4444" />}
+                leftSection={<IconLogout size={14} color="#ef4444" />}
                 color="red"
                 onClick={handleLogout}
               >

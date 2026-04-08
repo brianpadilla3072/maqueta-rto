@@ -3,11 +3,15 @@ import { useState } from 'react'
 import { Stack, Text, Button, Group, Box, Title, TextInput } from '@mantine/core'
 import { IconQrcode, IconArrowLeft } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { vehiculos } from '@/lib/mock'
+import { vehiculos, slotsHorario, slotsOcupados } from '@/lib/mock'
 
 const DISPLAY_URL = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:${window.location.port}/display`
   : 'http://localhost:3001/display'
+
+const TURNO_URL = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:${window.location.port}/turno`
+  : 'http://localhost:3001/turno'
 
 type Resultado = null | 'ingrese' | 'caja_condicional' | 'caja_registro'
 
@@ -25,6 +29,9 @@ export default function KioskPage() {
   }
 
   const reset = () => { setPatente(''); setResultado(null); setVehiculoEncontrado(null) }
+
+  const slotsLibres = slotsHorario.filter(s => !slotsOcupados.includes(s))
+  const hayTurnosHoy = slotsLibres.length > 0
 
   if (resultado === 'ingrese') return (
     <Box h="100dvh" bg="green.8" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -66,9 +73,28 @@ export default function KioskPage() {
     <Box h="100dvh" bg="blue.8" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Stack align="center" gap="xl">
         <Text style={{ fontSize: 80, fontFamily: 'monospace', letterSpacing: 12 }} c="white" fw={700}>{patente}</Text>
-        <Text fz={32} c="white" fw={600}>Diríjase a caja para registrarse</Text>
-        <Text size="lg" c="blue.2">Sin historial previo en el sistema</Text>
-        <Button mt="xl" size="lg" variant="white" color="blue" onClick={reset} leftSection={<IconArrowLeft />}>Nueva consulta</Button>
+
+        {hayTurnosHoy ? (
+          <>
+            <Text fz={28} c="white" fw={600} ta="center">Podés sacar turno para hoy</Text>
+            <Text size="lg" c="blue.2">Tenemos {slotsLibres.length} horarios disponibles</Text>
+          </>
+        ) : (
+          <>
+            <Text fz={28} c="white" fw={600} ta="center">Hoy no tenemos turno disponible</Text>
+            <Text size="lg" c="blue.2">Pero podés programar uno para otro día</Text>
+          </>
+        )}
+
+        <Stack align="center" gap="xs" mt="md">
+          <Box style={{ background: 'white', padding: 16, borderRadius: 16 }}>
+            <QRCodeSVG value={`${TURNO_URL}?patente=${encodeURIComponent(patente)}`} size={180} />
+          </Box>
+          <Text size="xs" c="blue.2" ff="monospace">{TURNO_URL}</Text>
+          <Text size="xs" c="blue.3">Escaneá para sacar tu turno</Text>
+        </Stack>
+
+        <Button mt="sm" size="lg" variant="white" color="blue" onClick={reset} leftSection={<IconArrowLeft />}>Nueva consulta</Button>
       </Stack>
     </Box>
   )

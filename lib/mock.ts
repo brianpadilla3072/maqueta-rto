@@ -21,11 +21,14 @@ export interface ColaItem {
   patente: string
   titular: string
   tipo: string
-  prioridad: 'CON_TURNO' | 'SIN_TURNO'
+  prioridad: 'CON_TURNO' | 'TURNO_DIA'
   estado: EstadoCola
   linea: number
   orden: number
+  medioPago?: MedioPago
 }
+
+export type EstadoCobro = 'FACTURADO' | 'PENDIENTE_FACTURACION' | 'ANULADO'
 
 export interface Cobro {
   id: string
@@ -33,8 +36,9 @@ export interface Cobro {
   titular: string
   monto: number
   medio: MedioPago
-  estado: 'PAGADO' | 'PENDIENTE_VALIDACION' | 'RECHAZADO'
+  estado: EstadoCobro
   hora: string
+  fecha: string  // ISO: 'YYYY-MM-DD'
 }
 
 export interface Usuario {
@@ -162,22 +166,32 @@ export const vehiculos: Vehiculo[] = [
 
 // ── Cola activa del día ──────────────────────────────────────────
 export const colaInicial: ColaItem[] = [
-  { id: '1', patente: 'ABC 123', titular: 'Juan Pérez', tipo: 'Carga peligrosa', prioridad: 'CON_TURNO', estado: 'EN_REVISION', linea: 1, orden: 1 },
-  { id: '2', patente: 'DEF 456', titular: 'Transener SA', tipo: 'Carga común', prioridad: 'CON_TURNO', estado: 'EN_ESPERA', linea: 1, orden: 2 },
-  { id: '3', patente: 'MNO 345', titular: 'Roberto Silva', tipo: 'Carga común', prioridad: 'SIN_TURNO', estado: 'EN_ESPERA', linea: 1, orden: 3 },
-  { id: '4', patente: 'JKL 012', titular: 'Cargill SA', tipo: 'Carga peligrosa', prioridad: 'CON_TURNO', estado: 'EN_ESPERA', linea: 2, orden: 1 },
-  { id: '5', patente: 'PQR 678', titular: 'Marcelo Torres', tipo: 'Particular', prioridad: 'SIN_TURNO', estado: 'EN_ESPERA', linea: 2, orden: 2 },
+  { id: '1', patente: 'ABC 123', titular: 'Juan Pérez',    tipo: 'Carga peligrosa', prioridad: 'CON_TURNO', estado: 'EN_REVISION', linea: 1, orden: 1, medioPago: 'Efectivo' },
+  { id: '2', patente: 'DEF 456', titular: 'Transener SA',  tipo: 'Carga común',    prioridad: 'CON_TURNO', estado: 'EN_ESPERA',   linea: 1, orden: 2, medioPago: 'Efectivo' },
+  { id: '3', patente: 'MNO 345', titular: 'Roberto Silva', tipo: 'Carga común',    prioridad: 'TURNO_DIA', estado: 'EN_ESPERA',   linea: 1, orden: 3 },
+  { id: '4', patente: 'JKL 012', titular: 'Cargill SA',    tipo: 'Carga peligrosa', prioridad: 'CON_TURNO', estado: 'EN_ESPERA',   linea: 2, orden: 1 },
+  { id: '5', patente: 'PQR 678', titular: 'Marcelo Torres',tipo: 'Particular',     prioridad: 'TURNO_DIA', estado: 'EN_ESPERA',   linea: 2, orden: 2, medioPago: 'Efectivo' },
 ]
 
-// ── Cobros del día ───────────────────────────────────────────────
+// ── Cobros ───────────────────────────────────────────────────────
 export const cobrosIniciales: Cobro[] = [
-  { id: '1', patente: 'STU 901', titular: 'Luis Fernández', monto: 12000, medio: 'Efectivo', estado: 'PAGADO', hora: '08:15' },
-  { id: '2', patente: 'VWX 234', titular: 'Ana Gómez', monto: 12000, medio: 'Posnet', estado: 'PAGADO', hora: '08:40' },
-  { id: '3', patente: 'YZA 567', titular: 'Pedro Martínez', monto: 15000, medio: 'Efectivo', estado: 'PAGADO', hora: '09:00' },
-  { id: '4', patente: 'ABC 123', titular: 'Juan Pérez', monto: 15000, medio: 'Transferencia', estado: 'PENDIENTE_VALIDACION', hora: '09:25' },
-  { id: '5', patente: 'JKL 012', titular: 'Cargill SA', monto: 15000, medio: 'Transferencia', estado: 'PENDIENTE_VALIDACION', hora: '09:47' },
-  { id: '6', patente: 'BCD 890', titular: 'Hugo Castillo', monto: 12000, medio: 'Efectivo', estado: 'PAGADO', hora: '10:10' },
-  { id: '7', patente: 'EFG 123', titular: 'Norma Ríos', monto: 12000, medio: 'Posnet', estado: 'PAGADO', hora: '10:35' },
+  // Hoy (2026-04-07)
+  { id: '1',  patente: 'STU 901', titular: 'Luis Fernández',  monto: 12000, medio: 'Efectivo',      estado: 'FACTURADO',               hora: '08:15', fecha: '2026-04-07' },
+  { id: '2',  patente: 'VWX 234', titular: 'Ana Gómez',       monto: 12000, medio: 'Posnet',         estado: 'FACTURADO',               hora: '08:40', fecha: '2026-04-07' },
+  { id: '3',  patente: 'YZA 567', titular: 'Pedro Martínez',  monto: 15000, medio: 'Efectivo',       estado: 'FACTURADO',               hora: '09:00', fecha: '2026-04-07' },
+  { id: '4',  patente: 'ABC 123', titular: 'Juan Pérez',       monto: 15000, medio: 'Transferencia',  estado: 'PENDIENTE_FACTURACION', hora: '09:25', fecha: '2026-04-07' },
+  { id: '5',  patente: 'JKL 012', titular: 'Cargill SA',       monto: 15000, medio: 'Transferencia',  estado: 'PENDIENTE_FACTURACION', hora: '09:47', fecha: '2026-04-07' },
+  { id: '6',  patente: 'BCD 890', titular: 'Hugo Castillo',    monto: 12000, medio: 'Efectivo',       estado: 'FACTURADO',               hora: '10:10', fecha: '2026-04-07' },
+  { id: '7',  patente: 'EFG 123', titular: 'Norma Ríos',       monto: 12000, medio: 'Posnet',         estado: 'FACTURADO',               hora: '10:35', fecha: '2026-04-07' },
+  // Ayer (2026-04-06)
+  { id: '8',  patente: 'ABC 123', titular: 'Juan Pérez',       monto: 15000, medio: 'Efectivo',       estado: 'FACTURADO',               hora: '09:10', fecha: '2026-04-06' },
+  { id: '9',  patente: 'MNO 345', titular: 'Roberto Silva',    monto: 12000, medio: 'Posnet',          estado: 'FACTURADO',            hora: '10:20', fecha: '2026-04-06' },
+  { id: '10', patente: 'PQR 678', titular: 'Marcelo Torres',   monto: 12000, medio: 'Efectivo',        estado: 'FACTURADO',               hora: '11:05', fecha: '2026-04-06' },
+  { id: '11', patente: 'DEF 456', titular: 'Transener SA',     monto: 15000, medio: 'Transferencia',   estado: 'FACTURADO',            hora: '14:30', fecha: '2026-04-06' },
+  // 2026-04-04
+  { id: '12', patente: 'GHI 789', titular: 'Carlos Rodríguez', monto: 12000, medio: 'Efectivo',        estado: 'FACTURADO',               hora: '08:50', fecha: '2026-04-04' },
+  { id: '13', patente: 'JKL 012', titular: 'Cargill SA',        monto: 15000, medio: 'Transferencia',  estado: 'ANULADO',              hora: '09:30', fecha: '2026-04-04' },
+  { id: '14', patente: 'STU 901', titular: 'Luis Fernández',   monto: 12000, medio: 'Posnet',          estado: 'FACTURADO',               hora: '11:15', fecha: '2026-04-04' },
 ]
 
 // ── Condicionales vencidos ────────────────────────────────────────

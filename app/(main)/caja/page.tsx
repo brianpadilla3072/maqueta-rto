@@ -1,62 +1,71 @@
 'use client'
 import { useState } from 'react'
 import {
-  Stack, Title, TextInput, Button, Group, Card, Text, Badge,
-  SimpleGrid, ThemeIcon, Alert, Divider, NumberInput, Radio,
-  Modal, Table, Tabs, ScrollArea,
+  Stack, Title, TextInput, Button, Group, Text, Badge,
+  Divider, Table, Tabs, ScrollArea,
 } from '@mantine/core'
-import {
-  IconSearch, IconUser, IconCar, IconCash, IconAlertTriangle,
-  IconCircleCheck, IconBuildingBank,
-} from '@tabler/icons-react'
-import { vehiculos, cobrosIniciales, formatPesos, type Cobro } from '@/lib/mock'
+import { DatePickerInput } from '@mantine/dates'
+import { IconSearch, IconCash, IconBuildingBank } from '@tabler/icons-react'
+import { vehiculos, colaInicial, cobrosIniciales, formatPesos, type Cobro, type EstadoCobro, type ColaItem } from '@/lib/mock'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
-type MedioPago = 'Efectivo' | 'Posnet' | 'Transferencia'
+type ConfirmState = { action: () => void; title: string; message: string; color?: string } | null
 
-const precioDefault = (v: typeof vehiculos[0]) =>
-  v.tipo === 'Carga' && v.peligrosa ? 15000 : 12000
+const precioDefault = (patente: string) => {
+  const norm = (s: string) => s.replace(/\s/g, '').toUpperCase()
+  const v = vehiculos.find(v => norm(v.patente) === norm(patente))
+  return v ? (v.tipo === 'Carga' && v.peligrosa ? 15000 : 12000) : 12000
+}
 
 export default function CajaPage() {
-  const [patente, setPatente] = useState('')
-  const [vehiculo, setVehiculo] = useState<typeof vehiculos[0] | null>(null)
-  const [monto, setMonto] = useState<number | string>(0)
-  const [medio, setMedio] = useState<MedioPago>('Efectivo')
-  const [modalAbierto, setModalAbierto] = useState(false)
-  const [ticketVisible, setTicketVisible] = useState(false)
+  const [colaLocal, setColaLocal] = useState<ColaItem[]>(colaInicial)
   const [cobros, setCobros] = useState<Cobro[]>(cobrosIniciales)
+  const [rango, setRango] = useState<[Date | null, Date | null]>([new Date(), new Date()])
+  const [filtroPatente, setFiltroPatente] = useState('')
+  const [confirm, setConfirm] = useState<ConfirmState>(null)
 
-  const buscar = () => {
-    const norm = (s: string) => s.replace(/\s/g, '').toUpperCase()
-    const v = vehiculos.find(v => norm(v.patente) === norm(patente))
-    if (v) { setVehiculo(v); setMonto(precioDefault(v)) }
-    else setVehiculo(null)
-  }
+  const pedir = (action: () => void, title: string, message: string, color?: string) =>
+    setConfirm({ action, title, message, color })
 
-  const registrarCobro = () => {
+  const turnosPendientes = colaLocal.filter(t => t.medioPago === 'Efectivo')
+
+  const registrarCobro = (turno: ColaItem) => {
     const nuevo: Cobro = {
       id: String(Date.now()),
-      patente: vehiculo!.patente,
-      titular: vehiculo!.titular,
-      monto: Number(monto),
-      medio,
-      estado: medio === 'Transferencia' ? 'PENDIENTE_VALIDACION' : 'PAGADO',
-      hora: new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }),
+      patente: turno.patente,
+      titular: turno.titular,
+      monto: precioDefault(turno.patente),
+      medio: 'Efectivo',
+      estado: 'PENDIENTE_FACTURACION' as EstadoCobro,
+      hora: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+      fecha: new Date().toISOString().slice(0, 10),
     }
     setCobros(prev => [nuevo, ...prev])
-    setModalAbierto(false)
-    setTicketVisible(true)
+    setColaLocal(prev => prev.filter(t => t.id !== turno.id))
   }
 
-  const aprobarTransferencia = (id: string) =>
-    setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'PAGADO' } : c))
+  const anularTurno = (turno: ColaItem) => {
+    const nuevo: Cobro = {
+      id: String(Date.now()),
+      patente: turno.patente,
+      titular: turno.titular,
+      monto: precioDefault(turno.patente),
+      medio: 'Efectivo',
+      estado: 'ANULADO' as EstadoCobro,
+      hora: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+      fecha: new Date().toISOString().slice(0, 10),
+    }
+    setCobros(prev => [nuevo, ...prev])
+    setColaLocal(prev => prev.filter(t => t.id !== turno.id))
+  }
 
-  const rechazarTransferencia = (id: string) =>
-    setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'RECHAZADO' } : c))
+  const facturarPago = (id: string) =>
+    setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'FACTURADO' as EstadoCobro } : c))
 
-  const pendientes = cobros.filter(c => c.estado === 'PENDIENTE_VALIDACION')
-  const totalEfectivo = cobros.filter(c => c.estado === 'PAGADO' && c.medio === 'Efectivo').reduce((a,b)=>a+b.monto,0)
-  const totalPosnet = cobros.filter(c => c.estado === 'PAGADO' && c.medio === 'Posnet').reduce((a,b)=>a+b.monto,0)
-  const totalTransferencia = cobros.filter(c => c.estado === 'PAGADO' && c.medio === 'Transferencia').reduce((a,b)=>a+b.monto,0)
+  const anularPago = (id: string) =>
+    setCobros(prev => prev.map(c => c.id === id ? { ...c, estado: 'ANULADO' as EstadoCobro } : c))
+
+  const pendientes = cobros.filter(c => c.estado === 'PENDIENTE_FACTURACION')
 
   return (
     <Stack maw={900} mx="auto">
@@ -64,114 +73,79 @@ export default function CajaPage() {
 
       <Tabs defaultValue="cobro">
         <Tabs.List>
-          <Tabs.Tab value="cobro" leftSection={<IconCash size={16} />}>Cobro</Tabs.Tab>
-          <Tabs.Tab value="transferencias" leftSection={<IconBuildingBank size={16} />}
+          <Tabs.Tab value="cobro" leftSection={<IconCash size={16} />}
+            rightSection={turnosPendientes.length > 0 ? <Badge size="xs" color="green">{turnosPendientes.length}</Badge> : null}>
+            Cobro
+          </Tabs.Tab>
+          <Tabs.Tab value="pagos" leftSection={<IconBuildingBank size={16} />}
             rightSection={pendientes.length > 0 ? <Badge size="xs" color="orange">{pendientes.length}</Badge> : null}>
-            Transferencias
+            Pagos
           </Tabs.Tab>
         </Tabs.List>
 
         {/* ── COBRO ── */}
         <Tabs.Panel value="cobro" pt="lg">
-          <Group align="flex-end" mb="lg">
-            <TextInput
-              label="Patente"
-              placeholder="ABC 123"
-              value={patente}
-              onChange={e => setPatente(e.target.value.toUpperCase())}
-              style={{ flex:1 }}
-              styles={{ input: { fontFamily:'monospace', fontSize: 18, letterSpacing: 3 } }}
-            />
-            <Button leftSection={<IconSearch size={16} />} onClick={buscar} disabled={patente.length < 6}>
-              Buscar
-            </Button>
-          </Group>
-
-          {vehiculo && (
-            <SimpleGrid cols={{ base:1, sm:2 }} spacing="lg">
-              <Stack gap="md">
-                <Card withBorder>
-                  <Group mb="xs">
-                    <ThemeIcon variant="light"><IconUser size={16} /></ThemeIcon>
-                    <div>
-                      <Text fw={600}>{vehiculo.titular || 'Sin historial'}</Text>
-                      <Text size="xs" c="dimmed">{vehiculo.cuit} · {vehiculo.condicionIva}</Text>
-                    </div>
-                  </Group>
-                  <SimpleGrid cols={2} mt="sm">
-                    <div><Text size="xs" c="dimmed">Tipo</Text><Text size="sm" fw={500}>{vehiculo.tipo}</Text></div>
-                    <div><Text size="xs" c="dimmed">Año</Text><Text size="sm" fw={500}>{vehiculo.anio}</Text></div>
-                    <div><Text size="xs" c="dimmed">Jurisdicción</Text><Text size="sm" fw={500}>{vehiculo.jurisdiccion}</Text></div>
-                    <div><Text size="xs" c="dimmed">Vencimiento</Text><Text size="sm" fw={500}>{vehiculo.vencimiento}</Text></div>
-                  </SimpleGrid>
-                  <Badge mt="sm" color={vehiculo.condicional ? 'orange' : 'green'} variant="light">
-                    {vehiculo.condicional ? 'CONDICIONAL' : 'TURNO CONFIRMADO'}
-                  </Badge>
-                </Card>
-
-                {vehiculo.condicional && (
-                  <Alert icon={<IconAlertTriangle size={16} />} color="orange" title="Condicional activo">
-                    El vehículo tiene un condicional de {vehiculo.diasCondicional} días. Verificar resolución antes de cobrar.
-                  </Alert>
-                )}
-              </Stack>
-
-              <Stack gap="md">
-                <Card withBorder>
-                  <Text fw={600} mb="md">Registrar cobro</Text>
-                  <NumberInput
-                    label="Monto"
-                    value={monto}
-                    onChange={setMonto}
-                    prefix="$ "
-                    thousandSeparator="."
-                    decimalSeparator=","
-                    mb="md"
-                  />
-                  <Radio.Group label="Medio de pago" value={medio} onChange={(v) => setMedio(v as MedioPago)} mb="lg">
-                    <Stack gap="xs" mt="xs">
-                      <Radio value="Efectivo" label="Efectivo" />
-                      <Radio value="Posnet" label="Posnet / débito" />
-                      <Radio value="Transferencia" label="Transferencia bancaria" />
-                    </Stack>
-                  </Radio.Group>
-                  {medio === 'Transferencia' && (
-                    <Alert color="blue" mb="md" fz="xs">
-                      La transferencia quedará pendiente de validación hasta que confirmes la acreditación.
-                    </Alert>
-                  )}
-                  <Button fullWidth color="green" onClick={() => setModalAbierto(true)}>
-                    Registrar cobro
-                  </Button>
-                </Card>
-
-                {ticketVisible && (
-                  <Card withBorder bg="green.0">
-                    <Group>
-                      <ThemeIcon color="green" variant="light"><IconCircleCheck size={16} /></ThemeIcon>
-                      <div>
-                        <Text fw={600} size="sm">Cobro registrado</Text>
-                        <Text size="xs" c="dimmed">{vehiculo.patente} — {formatPesos(Number(monto))} — {medio}</Text>
-                      </div>
-                    </Group>
-                  </Card>
-                )}
-              </Stack>
-            </SimpleGrid>
-          )}
-
-          {!vehiculo && patente.length >= 6 && (
-            <Alert color="red" icon={<IconAlertTriangle size={16} />}>
-              Patente no encontrada en el sistema.
-            </Alert>
+          <Title order={4} mb="md">Turnos pendientes de cobro — Efectivo</Title>
+          {turnosPendientes.length === 0 ? (
+            <Text c="dimmed">No hay turnos pendientes de cobro en efectivo.</Text>
+          ) : (
+            <ScrollArea>
+              <Table striped highlightOnHover style={{ minWidth: 500 }}>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Patente</Table.Th>
+                    <Table.Th>Titular</Table.Th>
+                    <Table.Th>Tipo</Table.Th>
+                    <Table.Th>Prioridad</Table.Th>
+                    <Table.Th>Monto</Table.Th>
+                    <Table.Th>Acciones</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {turnosPendientes.map(t => (
+                    <Table.Tr key={t.id}>
+                      <Table.Td><Text ff="monospace" fw={600}>{t.patente}</Text></Table.Td>
+                      <Table.Td>{t.titular}</Table.Td>
+                      <Table.Td>{t.tipo}</Table.Td>
+                      <Table.Td>
+                        <Badge size="xs" color={t.prioridad === 'CON_TURNO' ? 'teal' : 'blue'} variant="light">
+                          {t.prioridad === 'CON_TURNO' ? 'Con turno' : 'Turno en el día'}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>{formatPesos(precioDefault(t.patente))}</Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <Button size="xs" color="green" onClick={() =>
+                            pedir(
+                              () => registrarCobro(t),
+                              'Registrar cobro',
+                              `Registrar cobro de ${t.patente} — ${formatPesos(precioDefault(t.patente))} en efectivo.`,
+                              'green',
+                            )
+                          }>Registrar cobro</Button>
+                          <Button size="xs" color="red" variant="light" onClick={() =>
+                            pedir(
+                              () => anularTurno(t),
+                              'Anular cobro',
+                              `¿Anular el turno de ${t.patente}? Se registrará como anulado en el historial.`,
+                              'red',
+                            )
+                          }>Anular</Button>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
           )}
         </Tabs.Panel>
 
-        {/* ── TRANSFERENCIAS ── */}
-        <Tabs.Panel value="transferencias" pt="lg">
-          <Title order={4} mb="md">Transferencias pendientes de validación</Title>
+        {/* ── PAGOS ── */}
+        <Tabs.Panel value="pagos" pt="lg">
+          <Title order={4} mb="md">Pagos pendientes de facturación</Title>
           {pendientes.length === 0 ? (
-            <Text c="dimmed">No hay transferencias pendientes.</Text>
+            <Text c="dimmed">No hay pagos pendientes de facturación.</Text>
           ) : (
             <ScrollArea>
               <Table striped highlightOnHover style={{ minWidth: 500 }}>
@@ -193,8 +167,22 @@ export default function CajaPage() {
                       <Table.Td>{formatPesos(c.monto)}</Table.Td>
                       <Table.Td>
                         <Group gap="xs">
-                          <Button size="xs" color="green" onClick={() => aprobarTransferencia(c.id)}>Aprobar</Button>
-                          <Button size="xs" color="red" variant="light" onClick={() => rechazarTransferencia(c.id)}>Rechazar</Button>
+                          <Button size="xs" color="blue" onClick={() =>
+                            pedir(
+                              () => facturarPago(c.id),
+                              'Facturar pago',
+                              `¿Facturar el pago de ${c.patente} — ${formatPesos(c.monto)}?`,
+                              'blue',
+                            )
+                          }>Facturar</Button>
+                          <Button size="xs" color="red" variant="light" onClick={() =>
+                            pedir(
+                              () => anularPago(c.id),
+                              'Anular pago',
+                              `¿Anular el pago de ${c.patente}? La acción no se puede deshacer.`,
+                              'red',
+                            )
+                          }>Anular</Button>
                         </Group>
                       </Table.Td>
                     </Table.Tr>
@@ -204,7 +192,26 @@ export default function CajaPage() {
             </ScrollArea>
           )}
 
-          <Divider my="lg" label="Historial del día" />
+          <Divider my="lg" label="Historial" />
+          <Group mb="sm" gap="sm" align="flex-end">
+            <DatePickerInput
+              type="range"
+              label="Período"
+              value={rango}
+              onChange={setRango}
+              valueFormat="DD/MM/YYYY"
+              style={{ width: 240 }}
+            />
+            <TextInput
+              label="Patente"
+              placeholder="ABC 123"
+              value={filtroPatente}
+              onChange={e => setFiltroPatente(e.target.value.toUpperCase())}
+              leftSection={<IconSearch size={14} />}
+              style={{ flex: 1 }}
+              styles={{ input: { fontFamily: 'monospace' } }}
+            />
+          </Group>
           <ScrollArea>
             <Table style={{ minWidth: 560 }}>
               <Table.Thead>
@@ -218,7 +225,16 @@ export default function CajaPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {cobros.map(c => (
+                {cobros
+                  .filter(c => {
+                    const f = new Date(c.fecha + 'T00:00:00')
+                    return (
+                      (!rango[0] || f >= rango[0]) &&
+                      (!rango[1] || f <= rango[1]) &&
+                      (!filtroPatente || c.patente.replace(/\s/g,'').includes(filtroPatente.replace(/\s/g,'')))
+                    )
+                  })
+                  .map(c => (
                   <Table.Tr key={c.id}>
                     <Table.Td>{c.hora}</Table.Td>
                     <Table.Td><Text ff="monospace" size="sm">{c.patente}</Text></Table.Td>
@@ -226,8 +242,12 @@ export default function CajaPage() {
                     <Table.Td>{formatPesos(c.monto)}</Table.Td>
                     <Table.Td>{c.medio}</Table.Td>
                     <Table.Td>
-                      <Badge size="sm" color={c.estado === 'PAGADO' ? 'green' : c.estado === 'PENDIENTE_VALIDACION' ? 'orange' : 'red'}>
-                        {c.estado === 'PAGADO' ? 'Pagado' : c.estado === 'PENDIENTE_VALIDACION' ? 'Pendiente' : 'Rechazado'}
+                      <Badge size="sm" color={
+                        c.estado === 'FACTURADO' ? 'blue' :
+                        c.estado === 'PENDIENTE_FACTURACION' ? 'orange' : 'red'
+                      }>
+                        {c.estado === 'FACTURADO' ? 'Facturado' :
+                         c.estado === 'PENDIENTE_FACTURACION' ? 'Pend. factura' : 'Anulado'}
                       </Badge>
                     </Table.Td>
                   </Table.Tr>
@@ -239,22 +259,14 @@ export default function CajaPage() {
 
       </Tabs>
 
-      {/* Modal confirmación cobro */}
-      <Modal opened={modalAbierto} onClose={() => setModalAbierto(false)} title="Confirmar cobro" centered>
-        <Stack>
-          <Text>¿Confirmar el siguiente cobro?</Text>
-          <Card withBorder>
-            <Text size="sm"><b>Patente:</b> {vehiculo?.patente}</Text>
-            <Text size="sm"><b>Titular:</b> {vehiculo?.titular}</Text>
-            <Text size="sm"><b>Monto:</b> {formatPesos(Number(monto))}</Text>
-            <Text size="sm"><b>Medio:</b> {medio}</Text>
-          </Card>
-          <Group justify="flex-end">
-            <Button variant="light" onClick={() => setModalAbierto(false)}>Cancelar</Button>
-            <Button color="green" onClick={registrarCobro}>Confirmar</Button>
-          </Group>
-        </Stack>
-      </Modal>
+      <ConfirmModal
+        opened={confirm !== null}
+        onClose={() => setConfirm(null)}
+        onConfirm={confirm?.action ?? (() => {})}
+        title={confirm?.title ?? ''}
+        message={confirm?.message ?? ''}
+        confirmColor={confirm?.color}
+      />
     </Stack>
   )
 }
